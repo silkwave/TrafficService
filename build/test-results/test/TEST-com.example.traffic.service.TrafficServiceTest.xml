@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.traffic.service.TrafficServiceTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-05T12:14:01.483Z" hostname="DESKTOP-QTL0LHD" time="0.19">
+  <properties/>
+  <testcase name="passCarReturnsNullOnRedLight()" classname="com.example.traffic.service.TrafficServiceTest" time="0.077"/>
+  <testcase name="addCarStoresNextCarInQueue()" classname="com.example.traffic.service.TrafficServiceTest" time="0.009"/>
+  <testcase name="statusStartsWithRedLightAndEmptyQueue()" classname="com.example.traffic.service.TrafficServiceTest" time="0.004"/>
+  <testcase name="passCarRemovesNextCarOnGreenLight()" classname="com.example.traffic.service.TrafficServiceTest" time="0.002"/>
+  <system-out><![CDATA[21:14:01.597 [Test worker] INFO com.example.traffic.service.AddCarService -- Car produced. queueSize=1
+21:14:01.601 [Test worker] WARN com.example.traffic.service.PassCarService -- Car consume rejected. reason=RED_LIGHT
+21:14:01.656 [Test worker] INFO com.example.traffic.service.AddCarService -- Car produced. queueSize=1
+21:14:01.672 [Test worker] INFO com.example.traffic.service.AddCarService -- Car produced. queueSize=1
+21:14:01.672 [Test worker] INFO com.example.traffic.service.TrafficService -- Traffic light toggled. greenLight=true
+21:14:01.672 [Test worker] INFO com.example.traffic.service.PassCarService -- Car consumed. car=Car-1, queueSize=0
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

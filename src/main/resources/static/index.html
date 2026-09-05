@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Boot BlockingQueue Traffic Simulation</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2 { text-align: center; margin-top: 0; color: #2c3e50; }
+        .traffic-light { width: 70px; height: 150px; background: #2c3e50; border-radius: 15px; margin: 20px auto; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 10px 0; }
+        .light { width: 50px; height: 50px; border-radius: 50%; opacity: 0.2; transition: all 0.3s ease; }
+        .red { background: #ff4757; }
+        .green { background: #2ed573; }
+        .active { opacity: 1; box-shadow: 0 0 20px currentColor; }
+        .queue-section { margin: 25px 0; }
+        .queue-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
+        .queue-box { border: 2px dashed #a4b0be; border-radius: 8px; padding: 15px; min-height: 50px; display: flex; gap: 8px; flex-wrap: wrap; background: #f1f2f6; align-items: center; }
+        .car-badge { background: #1e90ff; color: white; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 14px; animation: popIn 0.3s ease-out; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .toggle-btn { grid-column: span 2; }
+        button { padding: 12px 20px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px; color: white; transition: background 0.2s; display: flex; justify-content: center; align-items: center; }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-produce { background: #3742fa; }
+        .btn-produce:hover:not(:disabled) { background: #5352ed; }
+        .btn-consume { background: #ff7f50; }
+        .btn-consume:hover:not(:disabled) { background: #ff6348; }
+        .btn-toggle { background: #2f3542; }
+        .btn-toggle:hover:not(:disabled) { background: #57606f; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 16px; height: 16px; animation: spin 1s linear infinite; margin-right: 8px; display: none; }
+        button:disabled .spinner { display: inline-block; }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🚦 BlockingQueue 신호등 시뮬레이션</h2>
+    
+    <div class="traffic-light">
+        <div id="redLight" class="light red active"></div>
+        <div id="greenLight" class="light green"></div>
+    </div>
+
+    <div class="queue-section">
+        <div class="queue-header">
+            <span>대기열 상태 (BlockingQueue)</span>
+            <span id="queueInfo">0 / 5</span>
+        </div>
+        <div id="queueView" class="queue-box"></div>
+    </div>
+
+    <div class="controls">
+        <button id="btnProduce" class="btn-produce" onclick="produceCar()">
+            <div class="spinner"></div><span id="txtProduce">차량 생성 (Produce)</span>
+        </button>
+        <button id="btnConsume" class="btn-consume" onclick="consumeCar()">
+            <div class="spinner"></div><span id="txtConsume">차량 통과 (Consume)</span>
+        </button>
+        <button id="btnToggle" class="btn-toggle toggle-btn" onclick="toggleLight()">
+            신호등 전환 (Toggle Light)
+        </button>
+    </div>
+</div>
+
+<script>
+    /**
+     * 서버에서 현재 큐의 상태와 신호등 상태를 가져와서 화면(UI)을 업데이트합니다.
+     */
+    async function updateStatus() {
+        try {
+            const res = await fetch('/api/traffic/status');
+            const data = await res.json();
+
+            // 1. 신호등 UI 업데이트
+            document.getElementById('redLight').classList.toggle('active', !data.isGreenLight);
+            document.getElementById('greenLight').classList.toggle('active', data.isGreenLight);
+
+            // 2. 큐 크기 정보 업데이트 (예: 2 / 5)
+            document.getElementById('queueInfo').innerText = `${data.queueSize} / ${data.capacity}`;
+            
+            // 3. 차량 뱃지 리스트 업데이트
+            const newHtml = data.cars.map(car => `<span class="car-badge">${car}</span>`).join('');
+            const queueView = document.getElementById('queueView');
+            // 깜빡임 방지를 위해 내용이 다를 때만 렌더링
+            if (queueView.innerHTML !== newHtml) {
+                queueView.innerHTML = newHtml;
+            }
+        } catch (error) {
+            console.error('Failed to fetch status:', error);
+        }
+    }
+
+    /**
+     * 차량 생성(Produce) 버튼 클릭 시 호출됩니다.
+     */
+    async function produceCar() {
+        const btn = document.getElementById('btnProduce');
+        const txt = document.getElementById('txtProduce');
+        
+        btn.disabled = true;
+        txt.innerText = '처리 중...';
+        
+        try {
+            await fetch('/api/traffic/produce', { method: 'POST' });
+        } finally {
+            txt.innerText = '차량 생성 (Produce)';
+            btn.disabled = false;
+            updateStatus();
+        }
+    }
+
+    /**
+     * 차량 통과(Consume) 버튼 클릭 시 호출됩니다.
+     */
+    async function consumeCar() {
+        const btn = document.getElementById('btnConsume');
+        const txt = document.getElementById('txtConsume');
+        
+        btn.disabled = true;
+        txt.innerText = '처리 중...';
+        
+        try {
+            await fetch('/api/traffic/consume', { method: 'POST' });
+        } finally {
+            txt.innerText = '차량 통과 (Consume)';
+            btn.disabled = false;
+            updateStatus();
+        }
+    }
+
+    /**
+     * 신호등 전환 버튼 클릭 시 호출됩니다.
+     */
+    async function toggleLight() {
+        await fetch('/api/traffic/toggle-light', { method: 'POST' });
+        updateStatus(); // 상태 즉시 갱신
+    }
+
+    // 다른 사용자의 조작이나 자동 갱신을 위해 1초마다 화면 상태를 업데이트 (폴링)
+    setInterval(updateStatus, 1000);
+
+    // 초기 화면 진입 시 한 번 로드
+    updateStatus();
+</script>
+</body>
+</html>
